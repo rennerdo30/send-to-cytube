@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" role="img" aria-labelledby="title desc">
+  <title id="title">Send to CyTube logo</title>
+  <desc id="desc">A stylized extension logo with the icon mark and the words Send to CyTube.</desc>
+  <defs>
+    <linearGradient id="bg" x1="26" y1="16" x2="136" y2="144" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff2d8"/>
+      <stop offset="1" stop-color="#f3b35e"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="46" y1="84" x2="120" y2="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d44c1f"/>
+      <stop offset="1" stop-color="#8f3712"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="16" y="16" width="128" height="128" rx="34" fill="url(#bg)"/>
+  <rect x="30" y="30" width="100" height="100" rx="28" fill="#fff9f1" opacity="0.96"/>
+  <path d="M48 80c9-17 20-24 34-24 15 0 24 8 33 17" fill="none" stroke="url(#flow)" stroke-linecap="round" stroke-width="11"/>
+  <path d="M111 57l15 14-20 3" fill="none" stroke="#8f3712" stroke-linecap="round" stroke-linejoin="round" stroke-width="8"/>
+  <path d="M58 58l22 13-22 13z" fill="#d44c1f"/>
+  <circle cx="106" cy="95" r="18" fill="none" stroke="#126d46" stroke-width="8"/>
+  <path d="M105 82c8 0 14 7 14 14" fill="none" stroke="#126d46" stroke-linecap="round" stroke-width="8"/>
+  <path d="M115 92l3 8-9 1" fill="none" stroke="#126d46" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+
+  <g fill="#23180f">
+    <text x="176" y="66" font-family="Avenir Next, Segoe UI, sans-serif" font-size="24" font-weight="700" letter-spacing="4.5" fill="#b94a1d">YOUTUBE TO CYTUBE</text>
+    <text x="176" y="108" font-family="Avenir Next, Segoe UI, sans-serif" font-size="50" font-weight="750">Send to CyTube</text>
+  </g>
+</svg>

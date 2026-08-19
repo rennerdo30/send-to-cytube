@@ -1,0 +1,122 @@
+---
+title: Installation
+description: Load Send to CyTube as an unpacked Chrome extension and install the optional SponsorBlock channel script.
+---
+
+import { Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+There is no Chrome Web Store listing. The extension is loaded unpacked from a local
+checkout, which also means there is no build step, no bundler, and no dependencies to
+install for the extension itself.
+
+## Requirements
+
+- A Chromium-based browser with Manifest V3 support (Chrome, Edge, Brave, Vivaldi)
+- A CyTube channel you can add media to
+- Nothing else - the extension is plain JavaScript, HTML, and CSS
+
+## Load the extension
+
+<Steps>
+
+1. Clone or download the repository:
+
+   ```bash
+   git clone https://github.com/rennerdo30/send-to-cytube.git
+   ```
+
+2. Open `chrome://extensions` in your browser.
+
+3. Enable **Developer mode** using the toggle in the top-right corner.
+
+4. Click **Load unpacked**.
+
+5. Select the repository root - the folder containing `manifest.json`.
+
+6. The `Send to CyTube` action icon appears in the toolbar, and a floating button
+   appears the next time you open a YouTube watch page.
+
+</Steps>
+
+<Aside type="tip">
+  After editing any extension file, press the reload button on the extension's card in
+  `chrome://extensions`. Content-script changes also need a refresh of the YouTube tab.
+</Aside>
+
+## Grant site access to your CyTube host
+
+The manifest declares no CyTube host up front. Instead it declares
+`optional_host_permissions` for `http://*/*` and `https://*/*`, and the extension asks
+for exactly one origin at a time - the origin of the tab you targeted.
+
+The first time you send to a given CyTube host, Chrome shows a site-access prompt.
+Accept it once per host and it is remembered.
+
+<Aside type="caution" title="If the prompt is refused on the YouTube page">
+  Chrome only allows `chrome.permissions.request()` from a user gesture in certain
+  contexts. If the in-page button reports `Setup needed` and the panel shows a
+  site-access error, open the toolbar popup once and send from there for that CyTube
+  host. After the grant exists, the in-page button works for that host from then on.
+</Aside>
+
+## What the extension declares
+
+From `manifest.json`:
+
+| Field | Value |
+| --- | --- |
+| `manifest_version` | `3` |
+| `permissions` | `storage`, `tabs`, `scripting`, `contextMenus` |
+| `optional_host_permissions` | `http://*/*`, `https://*/*` |
+| `content_scripts` | `youtube-page.js` + `youtube-page.css` on YouTube origins, `document_idle` |
+| `background` | `background.js` as a service worker |
+| `action` | `popup.html` |
+
+`tabs` is needed to enumerate open tabs and read their titles and URLs so candidate
+CyTube tabs can be listed. `scripting` performs the one-shot injection into the target
+tab. `storage` keeps your three saved defaults in `chrome.storage.sync`.
+
+## Install the SponsorBlock channel script
+
+This part is independent of the extension. It is CyTube channel JS and runs for every
+viewer in the channel who has channel JS enabled.
+
+<Steps>
+
+1. Open your channel on `cytu.be`.
+
+2. Go to **Channel Settings**.
+
+3. Open the admin/customization section that holds the channel JS field.
+
+4. Paste the full contents of `cytube-sponsorblock.js`.
+
+5. Save, then refresh the channel page.
+
+</Steps>
+
+A small status pill appears on the page once it is running. See the
+[SponsorBlock guide](/send-to-cytube/guides/sponsorblock/) for what it does and where
+it stops short.
+
+## Documentation site
+
+The docs you are reading live in `docs/` and are built with Astro Starlight.
+
+<Tabs>
+  <TabItem label="From the repo root">
+    ```bash
+    npm run install:docs
+    npm run dev      # local preview
+    npm run build    # static output in docs/dist
+    ```
+  </TabItem>
+  <TabItem label="From docs/">
+    ```bash
+    cd docs
+    npm install
+    npm run dev
+    npm run build
+    ```
+  </TabItem>
+</Tabs>

@@ -1,0 +1,135 @@
+---
+title: Architecture
+description: File layout, the message protocol between extension components, and notes for working on the code.
+---
+
+import { FileTree, Aside } from "@astrojs/starlight/components";
+
+## File layout
+
+<FileTree>
+
+- manifest.json Manifest V3 declaration
+- background.js Service worker: context menu, messaging, injection, URL parsing
+- youtube-page.js Content script: floating button and options panel
+- youtube-page.css Styles for the injected UI
+- popup.html / popup.js / popup.css Toolbar popup
+- cytube-sponsorblock.js Standalone CyTube channel JS (not loaded by the extension)
+- assets/
+  - icon16.png
+  - icon32.png
+  - icon48.png
+  - icon128.png
+  - icon.svg
+  - logo.svg
+- docs/ Astro Starlight documentation site
+- .github/workflows/deploy.yml GitHub Pages deployment for the docs
+
+</FileTree>
+
+No build step and no dependencies. The extension is plain ES2020+ browser JavaScript
+loaded directly by Chrome. The only `npm install` in the repository is for the docs site.
+
+## Components and responsibilities
+
+**`background.js`** is the only component that touches `chrome.scripting`,
+`chrome.contextMenus`, or `chrome.tabs.query` on behalf of others. It owns tab discovery,
+permission requests, the injected `injectQueueVideo` function, and the context-menu flow
+including the toolbar badge feedback.
+
+**`youtube-page.js`** runs in YouTube's page context (isolated world) and owns the
+floating UI. It holds no privileged capability of its own - every privileged operation
+is a message to the service worker.
+
+**`popup.js`** duplicates tab discovery locally, since a popup can call
+`chrome.tabs.query` and `chrome.permissions.request` directly, and then delegates the
+actual queueing to the service worker.
+
+<Aside type="note" title="Some logic is duplicated on purpose">
+  `parseYouTubeInput`, `isLikelyCyTubeTab`, and the tab-scoring helpers appear in more
+  than one file. An MV3 extension without a bundler cannot share modules between a
+  service worker, a content script, and a popup without adding build tooling, so these
+  are copied. If you change one, change the others - the parser in particular must stay
+  identical, because the service worker re-parses whatever a caller sends.
+</Aside>
+
+## Message protocol
+
+All messages go to the service worker via `chrome.runtime.sendMessage`. Each handler
+returns `true` to keep the response channel open for its async reply.
+
+### `list-cytube-tabs`
+
+Request: `{ type: "list-cytube-tabs" }`
+
+Response: `{ ok: true, tabs: [{ id, title, url }] }` — filtered, ranked, and
+title-trimmed — or `{ ok: false, error }`.
+
+### `ensure-origin-permission`
+
+Request: `{ type: "ensure-origin-permission", originPattern: "https://example.org/*" }`
+
+Response: `{ ok: true, granted: true }` when the permission already exists or was just
+granted; otherwise `{ ok: false, granted: false, error }`. If Chrome throws — which
+happens when the prompt is not allowed in that context — the error text tells the user to
+use the popup once for that host.
+
+### `queue-video`
+
+Request:
+
+```js
+{
+  type: "queue-video",
+  targetTabId: <int>,
+  videoUrl: "https://www.youtube.com/watch?v=...",
+  position: "end" | "next",
+  temp: <bool>
+}
+```
+
+Response on success: `{ ok: true, channelName, position, temp, item, message }`, or with
+`pending: true` when the 5-second reply timeout elapsed. Response on failure:
+`{ ok: false, error, channelName? }`.
+
+The worker re-validates everything it is handed: the URL is parsed again, `targetTabId`
+must be an integer, the tab must still exist with a URL, and `position` is re-coerced to
+`"end"` unless it is exactly `"next"`. A content script's claims are never trusted.
+
+## URL parsing
+
+One function, replicated verbatim across the three extension files. It rejects anything
+whose hostname is not in the allowed set, then extracts a video ID by shape:
+
+| Pattern | Extraction |
+| --- | --- |
+| `youtu.be/<id>` | first path segment |
+| `/watch?v=<id>` | the `v` query parameter |
+| `/shorts/<id>` | third path segment |
+| `/live/<id>` | third path segment |
+| `/embed/<id>` | third path segment |
+
+The result must match `/^[A-Za-z0-9_-]{11}$/`, and the return value is always the
+canonical `https://www.youtube.com/watch?v=<id>` plus the bare ID. Everything downstream
+works from the ID, so query junk, playlist parameters, and timestamps never reach CyTube.
+
+## Injection model
+
+Queueing uses `chrome.scripting.executeScript` with `world: "MAIN"` and a `func` plus
+serialisable `args`, not a string of code. `world: "MAIN"` is the essential detail: the
+default isolated world cannot see `window.socket`, `window.CHANNEL`, `window.CLIENT`, or
+`window.hasPermission`, which is exactly what this needs.
+
+The injected function returns a Promise, and `executeScript` awaits it, so the resolved
+result object travels back to the caller as `injections[0].result`.
+
+## Working on the code
+
+- Reload the extension card in `chrome://extensions` after editing any file; refresh the
+  YouTube tab as well for content-script changes.
+- Inspect the service worker through its `Service worker` link on the extension card.
+  Note that MV3 workers are terminated when idle.
+- Test the SponsorBlock script by pasting it into the browser console on a CyTube channel
+  page before committing it to channel settings, and set `debug: true` while doing so.
+- There is no automated test suite. Changes to `parseYouTubeInput` are worth exercising
+  by hand against all five URL shapes.

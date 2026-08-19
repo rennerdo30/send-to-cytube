@@ -1,0 +1,105 @@
+---
+title: Configuration
+description: Stored extension settings and the SponsorBlock CONFIG block, with the real defaults from the code.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+There is no options page and there are no environment variables. The extension keeps
+three values in `chrome.storage.sync`, and the SponsorBlock script is tuned by editing
+a `CONFIG` object at the top of the file.
+
+## Extension settings
+
+Every send - from the popup, the in-page panel, the in-page quick button, or the
+context menu - writes these three keys back to `chrome.storage.sync`, so the last thing
+you used becomes the default for next time.
+
+| Storage key | Values | Default when unset | Meaning |
+| --- | --- | --- | --- |
+| `lastTargetTabId` | integer tab ID | `null` | The CyTube tab you last sent to |
+| `defaultPosition` | `"end"` \| `"next"` | `"end"` | Where the item lands in the queue |
+| `defaultTemp` | boolean | `true` | Whether the item is added as temporary |
+
+Read back with the coercion the code actually applies:
+
+```js
+{
+  position: defaultPosition === "next" ? "next" : "end",
+  temp: defaultTemp !== false,
+  targetTabId: Number.isInteger(lastTargetTabId) ? lastTargetTabId : null
+}
+```
+
+Two details worth knowing:
+
+- **`temp` defaults to on.** The check is `defaultTemp !== false`, so an absent value
+  means temporary. The checkbox is also pre-checked in `popup.html` and in the in-page
+  panel markup.
+- **`position` falls back to `end`.** Anything that is not exactly `"next"` becomes
+  `"end"`, in the reader and again in the background worker before the emit.
+
+<Aside type="note" title="Tab IDs are not stable">
+  `lastTargetTabId` is a Chrome tab ID, which does not survive a browser restart. If
+  the saved ID is no longer among the detected CyTube tabs, the extension silently falls
+  back to the highest-ranked candidate rather than failing.
+</Aside>
+
+### Position and permissions
+
+Choosing `next` requires the `playlistnext` permission in the channel, on top of the
+`playlistadd` that every send requires. The injected function checks both against
+`window.hasPermission` before emitting - if the check is unavailable on the page, it is
+skipped and CyTube's server-side enforcement is the only gate.
+
+## SponsorBlock CONFIG
+
+Edit the `CONFIG` block near the top of `cytube-sponsorblock.js` before pasting it into
+your channel settings. These are the shipped defaults:
+
+```js
+var CONFIG = {
+  apiBase: "https://sponsor.ajay.app",
+  categories: [
+    "sponsor",
+    "selfpromo",
+    "interaction",
+    "intro",
+    "outro",
+    "preview",
+    "filler"
+  ],
+  pollMs: 400,
+  mergeGapSeconds: 0.35,
+  seekPaddingSeconds: 0.08,
+  ui: true,
+  debug: false
+};
+```
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `apiBase` | `https://sponsor.ajay.app` | SponsorBlock API origin. Point this at a self-hosted mirror if you run one. |
+| `categories` | 7 categories | Requested as repeated `category=` parameters with `actionType=skip`. Remove entries you do not want skipped. |
+| `pollMs` | `400` | Interval in milliseconds for the skip check that reads `PLAYER.getTime()`. |
+| `mergeGapSeconds` | `0.35` | Segments closer together than this are merged into one skip range. |
+| `seekPaddingSeconds` | `0.08` | Added past a segment's end so playback does not land back inside it. |
+| `ui` | `true` | Shows the status pill. Set to `false` for a silent install. |
+| `debug` | `false` | Enables `[CyTube SponsorBlock]` console logging. |
+
+A separate 1000 ms interval refreshes the status pill and picks up media changes; that
+one is not configurable.
+
+### Request shape
+
+The URL is assembled from `apiBase` and `categories`:
+
+```
+https://sponsor.ajay.app/api/skipSegments?videoID=<id>&service=YouTube&actionType=skip&category=sponsor&category=selfpromo...
+```
+
+The request is a plain `XMLHttpRequest`. A `404` is treated as "no segments for this
+video" and shown as such; any other non-2xx status is surfaced on the pill as
+`SponsorBlock request failed (<status>)`. Responses that arrive after the media has
+already changed are discarded by comparing against the media key that was current when
+the request went out.

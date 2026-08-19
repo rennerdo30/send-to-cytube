@@ -1,0 +1,270 @@
+#send-to-cytube-root {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483647;
+}
+
+#send-to-cytube-root * {
+  box-sizing: border-box;
+}
+
+.stc-anchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stc-trigger {
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #c74c18 0%, #8f2f0d 100%);
+  color: #fff8f1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 14px/1.2 "YouTube Sans", "Roboto", sans-serif;
+  min-height: 48px;
+  padding: 0 18px;
+  box-shadow: 0 18px 32px rgba(143, 47, 13, 0.28);
+}
+
+.stc-trigger:hover {
+  filter: brightness(1.04);
+}
+
+.stc-trigger[data-state="pending"] {
+  background: linear-gradient(135deg, #8a5a13 0%, #6a4208 100%);
+}
+
+.stc-trigger[data-state="success"] {
+  background: linear-gradient(135deg, #187446 0%, #105634 100%);
+}
+
+.stc-trigger[data-state="error"] {
+  background: linear-gradient(135deg, #8f2030 0%, #6e1724 100%);
+}
+
+.stc-trigger-label {
+  white-space: nowrap;
+}
+
+.stc-options {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.1);
+  color: #171717;
+  cursor: pointer;
+  font: 700 22px/1 "Roboto", sans-serif;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+}
+
+.stc-options:hover {
+  background: rgba(17, 17, 17, 0.16);
+}
+
+.stc-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid rgba(150, 73, 31, 0.18);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(199, 76, 24, 0.16), transparent 38%),
+    rgba(255, 249, 242, 0.98);
+  box-shadow: 0 20px 48px rgba(15, 15, 15, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.stc-panel[hidden] {
+  display: none;
+}
+
+.stc-panel-header {
+  margin-bottom: 12px;
+}
+
+.stc-eyebrow {
+  color: #b04318;
+  font: 700 11px/1.1 "Roboto", sans-serif;
+  letter-spacing: 0.14em;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.stc-title {
+  color: #18110d;
+  font: 700 18px/1.1 "YouTube Sans", "Roboto", sans-serif;
+  margin: 0;
+}
+
+.stc-subtle {
+  color: #6c5b4c;
+  font: 500 12px/1.35 "Roboto", sans-serif;
+  margin: 6px 0 0;
+}
+
+.stc-field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.stc-field-label {
+  color: #5a4a3d;
+  display: block;
+  font: 600 12px/1.2 "Roboto", sans-serif;
+  margin-bottom: 6px;
+}
+
+.stc-select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(63, 40, 23, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #1f1712;
+  font: 500 13px/1.2 "Roboto", sans-serif;
+  padding: 0 12px;
+}
+
+.stc-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.stc-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2b211a;
+  font: 600 13px/1.2 "Roboto", sans-serif;
+  min-height: 38px;
+  padding: 0 6px 2px 0;
+  white-space: nowrap;
+}
+
+.stc-checkbox input {
+  margin: 0;
+}
+
+.stc-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.stc-send,
+.stc-refresh {
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font: 700 13px/1 "Roboto", sans-serif;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.stc-send {
+  background: #111111;
+  color: #fff;
+  flex: 1;
+}
+
+.stc-refresh {
+  background: rgba(17, 17, 17, 0.08);
+  color: #171717;
+}
+
+.stc-send:disabled,
+.stc-refresh:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.stc-status {
+  color: #6c5b4c;
+  font: 500 12px/1.35 "Roboto", sans-serif;
+  margin-top: 10px;
+  min-height: 18px;
+}
+
+.stc-status[data-state="success"] {
+  color: #106d45;
+}
+
+.stc-status[data-state="error"] {
+  color: #8d1d2f;
+}
+
+html[dark] .stc-panel {
+  border-color: rgba(255, 173, 121, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(226, 108, 54, 0.16), transparent 38%),
+    rgba(33, 26, 22, 0.96);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.42);
+}
+
+html[dark] .stc-title,
+html[dark] .stc-checkbox,
+html[dark] .stc-select {
+  color: #f5efe9;
+}
+
+html[dark] .stc-subtle,
+html[dark] .stc-field-label,
+html[dark] .stc-status {
+  color: #c6b4a5;
+}
+
+html[dark] .stc-select {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[dark] .stc-send {
+  background: #f7efe7;
+  color: #17120f;
+}
+
+html[dark] .stc-refresh {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4ede7;
+}
+
+html[dark] .stc-options {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f4ede7;
+}
+
+html[dark] .stc-options:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 900px) {
+  #send-to-cytube-root {
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .stc-trigger {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .stc-options {
+    height: 44px;
+    min-width: 44px;
+    font-size: 20px;
+  }
+
+  .stc-panel {
+    width: min(320px, calc(100vw - 24px));
+  }
+}

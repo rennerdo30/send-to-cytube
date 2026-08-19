@@ -1,0 +1,111 @@
+---
+title: Channel Targeting
+description: How the extension finds and ranks candidate CyTube tabs, and what it verifies inside the target page.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+You never type a channel name or URL. The extension works out which of your open tabs
+is a CyTube channel, ranks the candidates, and then verifies the guess from inside the
+page before emitting anything.
+
+## Why targeting works this way
+
+CyTube is self-hosted as often as it is used on `cytu.be`, so there is no single host to
+hardcode. And because the extension deliberately holds no credentials, it has to reach
+the channel through a tab that is already connected. Detection is therefore heuristic on
+the outside and verified on the inside.
+
+## Step 1: Candidate detection
+
+`chrome.tabs.query({})` returns every tab. A tab survives filtering if it has an integer
+ID, an `http://` or `https://` URL, and passes `isLikelyCyTubeTab`:
+
+```js
+const haystack = `${tab.title || ""} ${tab.url || ""}`.toLowerCase();
+
+if (haystack.includes("cytube") || haystack.includes("cytu.be")) {
+  return true;
+}
+
+const parsed = new URL(tab.url);
+return /^\/r\/[a-z0-9_-]+$/i.test(parsed.pathname);
+```
+
+So a tab qualifies if its title or URL mentions `cytube` or `cytu.be`, **or** if its
+path looks like a CyTube channel route (`/r/<channel>`). That second rule is what makes
+self-hosted instances on arbitrary domains work without configuration.
+
+<Aside type="note" title="Deliberately permissive">
+  This matching is loose on purpose - a false positive is cheap, because step 3 rejects
+  any tab that is not really a CyTube channel page before anything is emitted. A false
+  negative, by contrast, would leave you unable to send at all.
+</Aside>
+
+## Step 2: Ranking
+
+Candidates are scored and sorted highest-first; ties break by the tab's window position:
+
+| Signal in title or URL | Points |
+| --- | --- |
+| contains `cytube` | +5 |
+| contains `cytu.be` | +4 |
+| contains `/r/` | +3 |
+
+The scores are additive, so a `cytu.be/r/example` tab scores 12 and outranks a tab that
+merely mentions CyTube in its title. The dropdowns list every candidate as
+`<title> - <host>` so you can override the ranking.
+
+Selection then works like this:
+
+- If `lastTargetTabId` is still among the candidates, it wins.
+- Otherwise the top-ranked candidate is used.
+- If there are no candidates at all, you get
+  `Open your CyTube channel in another tab first.`
+
+## Step 3: Site access for that origin
+
+Before injecting, the origin of the chosen tab is turned into a pattern
+(`https://example.org/*`) and checked with `chrome.permissions.contains`. If it is
+missing, `chrome.permissions.request` prompts you - one host, once.
+
+Nothing is granted broadly ahead of time. The manifest lists only
+`optional_host_permissions`, so a fresh install can reach no site until you point it at
+one.
+
+## Step 4: Verification inside the page
+
+`chrome.scripting.executeScript` runs a single function in the target tab with
+`world: "MAIN"`, which is what lets it see CyTube's own page globals rather than an
+isolated content-script world. That function refuses to proceed unless all of these
+hold:
+
+| Check | Rejection message |
+| --- | --- |
+| `window.socket` exists with an `emit` function | `This page does not expose an active CyTube socket.` |
+| `window.CHANNEL.name` is a string | `This tab is not a CyTube channel page.` |
+| `socket.disconnected` is falsy | `CyTube is disconnected in the selected tab.` |
+| `window.hasPermission("playlistadd")` (when available) | `Your current CyTube user cannot add videos in this channel.` |
+| `window.hasPermission("playlistnext")` for `pos: "next"` | Position-specific refusal |
+
+Only after all of those does it emit:
+
+```js
+socket.emit("queue", { id: videoId, type: "yt", pos: position, temp });
+```
+
+## Step 5: Confirming the result
+
+The injected function attaches temporary `queue` and `queueFail` listeners before
+emitting, then resolves on whichever fires first, with a 5-second timeout.
+
+A `queue` packet only counts as yours when `item.media.type === "yt"`, the media ID
+matches, and - if `window.CLIENT.name` is readable - `item.queueby` equals your name.
+Listeners are always detached afterwards via `socket.off` or `socket.removeListener`,
+whichever the page's socket.io build provides.
+
+<Aside type="caution" title="The channel does the enforcing">
+  Client-side permission checks are a courtesy that produces a clear error instead of a
+  silent failure. CyTube still enforces its own rules server-side, so this extension
+  cannot grant you anything your account does not already have.
+</Aside>

@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Send to CyTube",
+  "version": "0.2.0",
+  "description": "Send the current YouTube video to an open CyTube channel tab.",
+  "permissions": ["storage", "tabs", "scripting", "contextMenus"],
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://music.youtube.com/*"
+      ],
+      "js": ["youtube-page.js"],
+      "css": ["youtube-page.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png"
+    },
+    "default_title": "Send to CyTube",
+    "default_popup": "popup.html"
+  }
+}

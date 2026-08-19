@@ -1,0 +1,89 @@
+---
+title: Send to CyTube
+description: Chrome extension that queues the current YouTube video into an open CyTube channel tab, plus a channel-JS SponsorBlock client.
+template: splash
+hero:
+  tagline: One click on a YouTube page, and the video lands in your CyTube queue - using the session you already have open.
+  actions:
+    - text: Install it
+      link: /send-to-cytube/getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/rennerdo30/send-to-cytube
+      icon: external
+---
+
+import { Card, CardGrid, Aside } from "@astrojs/starlight/components";
+
+## What this is
+
+**Send to CyTube** is a Chrome Manifest V3 extension. It adds a floating button to
+YouTube watch pages and a context-menu entry on YouTube links. Activating either one
+queues that video into a [CyTube](https://cytu.be) channel you already have open in
+another tab.
+
+The repository also ships **`cytube-sponsorblock.js`**, a standalone channel-JS script
+you paste into your CyTube channel's customization settings. It pulls community
+segment data from the SponsorBlock API and seeks past sponsor segments during playback.
+
+## Why it works this way
+
+The extension never signs in to CyTube, stores no credentials, and talks to no backend
+of its own. It injects a short function into the CyTube tab you point it at and emits
+the very same socket.io event the CyTube web client emits when you add media yourself:
+
+```js
+socket.emit("queue", { id, type: "yt", pos, temp });
+```
+
+Because the emit happens inside your existing page, it inherits your existing
+connection, your login or guest name, and your channel permissions. Nothing is
+impersonated and nothing is proxied.
+
+<Aside type="caution" title="You still need permission">
+  Your CyTube user must hold the `playlistadd` permission in the target channel (and
+  `playlistnext` for the "Next" position). The extension checks this client-side before
+  emitting, and CyTube enforces it server-side regardless.
+</Aside>
+
+## Features
+
+<CardGrid stagger>
+  <Card title="One-click send" icon="rocket">
+    A floating `Send to CyTube` button on YouTube watch pages sends the current video
+    using your saved defaults - no dialog, no tab picking.
+  </Card>
+  <Card title="Right-click any link" icon="external">
+    A `Send to CyTube` context-menu item on YouTube video links works from the
+    homepage, subscriptions, and search results.
+  </Card>
+  <Card title="No credentials, no server" icon="approve-check">
+    Reuses the socket in your open CyTube tab. No login, no API keys, no telemetry.
+  </Card>
+  <Card title="Real confirmation" icon="information">
+    Listens for CyTube's `queue` and `queueFail` replies and reports the actual
+    outcome instead of assuming success.
+  </Card>
+  <Card title="Least-privilege host access" icon="setting">
+    CyTube origins are requested at runtime through `optional_host_permissions`, one
+    host at a time, only when you first target it.
+  </Card>
+  <Card title="SponsorBlock for the room" icon="seti:video">
+    Optional channel JS that merges adjacent skip ranges and seeks past them, with a
+    status pill and leader-aware sync.
+  </Card>
+</CardGrid>
+
+## Supported YouTube URLs
+
+`watch`, `youtu.be`, `shorts`, `live`, and `embed` links on `youtube.com`,
+`www.youtube.com`, `m.youtube.com`, `music.youtube.com`, and `youtu.be`. Every URL is
+reduced to its 11-character video ID before anything is sent.
+
+## Where to go next
+
+- [Installation](/send-to-cytube/getting-started/installation/) - load the unpacked extension
+- [Configuration](/send-to-cytube/getting-started/configuration/) - stored settings and SponsorBlock `CONFIG`
+- [Channel targeting](/send-to-cytube/guides/channel-targeting/) - how the CyTube tab is chosen
+- [SponsorBlock](/send-to-cytube/guides/sponsorblock/) - skip behaviour and its limits

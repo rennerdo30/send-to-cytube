@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Send to CyTube</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <img class="hero-logo" src="assets/logo.svg" alt="Send to CyTube" />
+        <p class="eyebrow">YouTube -> CyTube</p>
+        <h1>Send to queue</h1>
+        <p class="subtle">Uses the open CyTube tab you are already logged into.</p>
+      </header>
+
+      <section class="panel">
+        <label class="field">
+          <span>YouTube URL</span>
+          <input id="video-url" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+        </label>
+        <p id="video-meta" class="hint"></p>
+      </section>
+
+      <section class="panel">
+        <div class="row">
+          <label class="field grow">
+            <span>Target tab</span>
+            <select id="target-tab"></select>
+          </label>
+          <button id="refresh-tabs" class="secondary" type="button">Refresh</button>
+        </div>
+
+        <div class="row compact">
+          <label class="field grow">
+            <span>Position</span>
+            <select id="position">
+              <option value="end">End of queue</option>
+              <option value="next">Next</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input id="temp" type="checkbox" checked />
+            <span>Temp</span>
+          </label>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="send-button" type="button">Send to CyTube</button>
+      </div>
+
+      <p id="status" class="status" aria-live="polite"></p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

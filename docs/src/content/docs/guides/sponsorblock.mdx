@@ -1,0 +1,145 @@
+---
+title: SponsorBlock
+description: How the CyTube channel-JS SponsorBlock client detects media, merges segments, skips them, and stays in sync.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+`cytube-sponsorblock.js` is not part of the extension. It is a self-contained IIFE you
+paste into a CyTube channel's JS field, where it runs in the browser of every viewer who
+has channel JS enabled.
+
+## What it does
+
+<Steps>
+
+1. Detects the currently playing media and, for YouTube media only, fetches its
+   SponsorBlock segments.
+
+2. Merges segments that nearly touch into single skip ranges.
+
+3. Polls playback position and seeks past a range whenever playback enters one.
+
+4. Keeps a small status pill on the page reporting its state.
+
+5. Propagates the skip when the local user is the channel leader, and compensates
+   locally when there is no leader.
+
+</Steps>
+
+It guards against double installation with a `window.__cytubeSponsorBlockInstalled`
+flag, so pasting it twice or re-running it is harmless.
+
+## Media detection
+
+Two sources are combined. `window.PLAYER.mediaType` and `PLAYER.mediaId` give the live
+state, and CyTube's `Callbacks.changeMedia` is wrapped to record a "hint" of the media
+that is about to load.
+
+The hint wins for up to 10 seconds while `PLAYER` is still catching up, and is cleared as
+soon as `PLAYER` agrees with it. Media is keyed as `type:id`, and any key change resets
+all per-video state.
+
+Non-YouTube media is recognised and ignored - the pill reads
+`SponsorBlock idle: not a YouTube video`.
+
+## Segment fetching and merging
+
+Segments are requested from the SponsorBlock API with `service=YouTube` and
+`actionType=skip`, one `category=` parameter per configured category. Responses are
+normalised (entries without a valid two-element `segment` array are dropped, each keeps
+its `category`), sorted by start time, then merged: two ranges closer than
+`mergeGapSeconds` (0.35 s by default) become one.
+
+Merging matters because seeking is not free. Two sponsor segments a fifth of a second
+apart would otherwise cause two visible seeks in a row.
+
+A response that arrives after the media changed is discarded rather than applied to the
+wrong video.
+
+## Skipping
+
+Every `pollMs` (400 ms by default) the script reads `PLAYER.getTime()`, finds any merged
+range containing the current position, and seeks to `range.end + seekPaddingSeconds`.
+
+Guards prevent seek loops:
+
+- The player must be ready for the media the script currently tracks.
+- Re-skipping the same range within 1.5 s is suppressed when playback is already at or
+  past the previous target.
+- A target that is not actually ahead of the current position is ignored.
+
+Seeking probes several APIs in order, because the method available depends on which
+player CyTube instantiated: `PLAYER.seekTo`, `PLAYER.seek`, `PLAYER.setTime`, then
+`PLAYER.player.seekTo`, `PLAYER.player.seek`, `PLAYER.player.setCurrentTime`, and
+finally assigning `PLAYER.player.currentTime`. If none exist, the pill reports
+`SponsorBlock could not seek this player`.
+
+## Staying in sync
+
+This is the awkward part of doing SponsorBlock in a synchronised watch-party, and the
+script handles two cases differently.
+
+### With a leader
+
+If `CLIENT.leader` is true, the script emits a `mediaUpdate` shortly after seeking:
+
+```js
+socket.emit("mediaUpdate", {
+  id: PLAYER.mediaId,
+  currentTime: <seconds>,
+  paused: Boolean(PLAYER.paused),
+  type: PLAYER.mediaType
+});
+```
+
+That is CyTube's normal sync path, so the whole room follows the skip.
+
+### With no leader (server autolead)
+
+Without a leader, the server keeps its own clock, which knows nothing about your local
+skips. The script therefore accumulates a `localSyncOffset` - the total time it has
+skipped - and adds it to the `currentTime` of incoming `changeMedia` and `mediaUpdate`
+packets before CyTube's own handlers see them. Each range contributes to the offset only
+once.
+
+The offset resets on media change and whenever `Callbacks.setLeader` fires, since the
+sync regime just changed.
+
+<Aside type="caution" title="Viewers can drift apart">
+  In a no-leader room, viewers running channel JS skip locally and end up ahead of
+  viewers who have channel JS disabled. This is inherent to a client-side approach and is
+  not something the script can fix.
+</Aside>
+
+## Status pill
+
+With `ui: true` the script renders a small pill on the page, tinted by tone, showing
+messages such as:
+
+- `SponsorBlock waiting for media`
+- `SponsorBlock loading segments...`
+- `SponsorBlock ready: 3 skip range(s)`
+- `SponsorBlock active: no segments for this video`
+- `SponsorBlock skipped to 4:21`
+- `SponsorBlock request failed (500)`
+
+A 1-second interval keeps it current. Set `ui: false` for a silent install, and
+`debug: true` for `[CyTube SponsorBlock]` console logging.
+
+## Layout tweak
+
+Before installing the skip logic the script also widens the video pane by repeatedly
+calling a re-implemented `CyTube.ui.changeVideoWidth`, which clamps between Bootstrap
+columns 3 and 10. This is a cosmetic convenience unrelated to skipping; it is wrapped in
+a `try`/`catch` and logs a warning if the layout does not support it (for example the
+`hd` layout). Delete `applyExistingLayoutTweaks` and its call if you do not want it.
+
+## Limits
+
+- It is channel JS, not a server modification. Anyone with channel JS disabled gets none
+  of it.
+- Skips are computed and executed per viewer, locally.
+- Room-wide sync updates are only sent by the current leader.
+- Non-YouTube media is ignored entirely.
+- Segment data quality is whatever SponsorBlock's contributors submitted for that video.

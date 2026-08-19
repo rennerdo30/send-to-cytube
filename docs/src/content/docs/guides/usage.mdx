@@ -1,0 +1,91 @@
+---
+title: Usage
+description: The four ways to queue a video and how to read the feedback each one gives.
+---
+
+import { Steps, Aside } from "@astrojs/starlight/components";
+
+## Before you start
+
+Open your CyTube channel in a tab and make sure it is actually connected - the socket
+must be live, because the extension emits through it. Then open a YouTube video.
+
+## 1. The in-page button
+
+On a YouTube watch page a floating `Send to CyTube` control is appended to the body. It
+has two parts:
+
+- The **large button** sends immediately using your saved defaults.
+- The **`...` options button** beside it opens a panel for changing the target tab,
+  queue position, and temp flag.
+
+The large button relabels itself as it works: `Sending...`, then `Queued` or `Sent` on
+success, or `Setup needed` on failure. It reverts to `Send to CyTube` after about 1.8
+seconds.
+
+When a quick send fails, the options panel opens automatically with the specific error
+in its status line - so the failure path always tells you what to fix rather than just
+that something broke.
+
+<Aside type="note">
+  The control is created only when the current URL parses as a supported YouTube video,
+  and it is removed when you navigate away from one. It follows YouTube's client-side
+  navigation via a `MutationObserver` plus the `yt-navigate-finish` and `popstate` events.
+</Aside>
+
+## 2. The right-click menu
+
+Right-click any YouTube video link - homepage, subscriptions, search results - and pick
+`Send to CyTube`. This path always uses your saved defaults; there is no dialog.
+
+Feedback appears as a badge on the toolbar icon for about 3.5 seconds: a green `OK` or a
+red `ERR`, with the full message in the icon's tooltip.
+
+The menu item is registered for `link` contexts on YouTube document URLs, and its target
+URL patterns cover the four YouTube hosts plus `youtu.be`.
+
+## 3. The toolbar popup
+
+Click the extension icon. The popup pre-fills the URL field from the active tab if that
+tab is a supported YouTube video, and otherwise lets you paste any supported URL. Below
+that you get the target tab dropdown with a `Refresh` button, the position select, and
+the temp checkbox.
+
+As you type, a hint line under the field either echoes the parsed `Video ID:` or tells
+you the URL is not supported - so you know before pressing send.
+
+<Aside type="tip">
+  The popup is the reliable place to complete a first-time site-access grant for a new
+  CyTube host. Once granted, the in-page button works for that host too.
+</Aside>
+
+## 4. Sending a video you are not watching
+
+Paste any supported URL into the popup. Every entry point funnels through the same
+parser, which reduces the URL to its 11-character video ID, so a `shorts`, `live`,
+`embed`, or `youtu.be` link is queued exactly like a `watch` link.
+
+## What the result messages mean
+
+| Message | What happened |
+| --- | --- |
+| `Queued in #channel.` | CyTube echoed a `queue` packet matching your video and your username. Confirmed. |
+| `Request sent to #channel.` | The emit went out but no reply arrived within 5 seconds. It may still have worked. |
+| `CyTube rejected the queue request.` | A `queueFail` packet came back; where CyTube supplied a reason, that reason is shown instead. |
+| `Open your CyTube channel in another tab first.` | No tab looked like a CyTube channel. |
+| `This tab is not a CyTube channel page.` | The tab ran the injection but exposed no `window.CHANNEL`. |
+| `CyTube is disconnected in the selected tab.` | `socket.disconnected` was true. Reconnect the tab. |
+| `Your current CyTube user cannot add videos in this channel.` | The `playlistadd` check failed. |
+| `Site access is required for the selected CyTube tab.` | The origin permission prompt was declined. |
+| `Enter a valid YouTube watch, short, or youtu.be URL.` | The URL did not yield an 11-character video ID. |
+
+<Steps>
+
+1. **Confirmed success** requires the echoed item's media type to be `yt`, its ID to
+   match, and - when `window.CLIENT.name` is readable - its `queueby` to be you. This is
+   what keeps somebody else's simultaneous add from being reported as yours.
+
+2. **A timeout is reported honestly** as pending rather than as success or failure,
+   because the emit is fire-and-forget and CyTube may simply have been slow.
+
+</Steps>

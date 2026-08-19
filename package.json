@@ -1,0 +1,21 @@
+{
+  "name": "send-to-cytube",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Chrome MV3 extension that queues the current YouTube video into an open CyTube channel tab, plus a CyTube channel-JS SponsorBlock client",
+  "scripts": {
+    "dev": "cd docs && npm run dev",
+    "build": "cd docs && npm run build",
+    "preview": "cd docs && npm run preview",
+    "install:docs": "cd docs && npm install"
+  },
+  "keywords": [
+    "chrome-extension",
+    "manifest-v3",
+    "cytube",
+    "youtube",
+    "sponsorblock"
+  ],
+  "author": "rennerdo30",
+  "license": "MIT"
+}
